@@ -46,6 +46,8 @@ process.on("SIGINT", async () => {
   process.exit(0);
 });
 
-start();
+if (!process.env.VERCEL) {
+  start();
+}
 
 export default app;
