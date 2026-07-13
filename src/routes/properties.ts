@@ -8,7 +8,7 @@ const router = Router();
 
 router.get("/", async (req: Request, res: Response): Promise<void> => {
   try {
-    const db = getDB();
+    const db = await getDB();
     const { search, category, type, minPrice, maxPrice, sort, page = "1", limit = "12" } = req.query;
 
     const filter: Record<string, unknown> = {};
@@ -65,7 +65,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
 
 router.get("/stats/category", async (_req: Request, res: Response): Promise<void> => {
   try {
-    const db = getDB();
+    const db = await getDB();
     const results = await db.collection("properties").aggregate([
       { $group: { _id: "$category", count: { $sum: 1 } } },
     ]).toArray();
@@ -77,7 +77,7 @@ router.get("/stats/category", async (_req: Request, res: Response): Promise<void
 
 router.get("/:id", async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   try {
-    const db = getDB();
+    const db = await getDB();
     const property = await db.collection<Property>("properties").findOne(
       { _id: new ObjectId(req.params.id) }
     );
@@ -102,7 +102,7 @@ router.post("/", authMiddleware, async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    const db = getDB();
+    const db = await getDB();
     const property: Property = {
       title,
       description: description || "",
@@ -132,7 +132,7 @@ router.post("/", authMiddleware, async (req: Request, res: Response): Promise<vo
 
 router.put("/:id", authMiddleware, async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   try {
-    const db = getDB();
+    const db = await getDB();
     const property = await db.collection<Property>("properties").findOne(
       { _id: new ObjectId(req.params.id) }
     );
@@ -179,7 +179,7 @@ router.put("/:id", authMiddleware, async (req: Request<{ id: string }>, res: Res
 
 router.delete("/:id", authMiddleware, async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   try {
-    const db = getDB();
+    const db = await getDB();
     const property = await db.collection<Property>("properties").findOne(
       { _id: new ObjectId(req.params.id) }
     );

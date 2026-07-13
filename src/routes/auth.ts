@@ -27,7 +27,7 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const db = getDB();
+    const db = await getDB();
     const existing = await db.collection<User>("users").findOne({ email: email.toLowerCase() });
 
     if (existing) {
@@ -64,7 +64,7 @@ router.post("/login", async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const db = getDB();
+    const db = await getDB();
     const user = await db.collection<User>("users").findOne({ email: email.toLowerCase() });
 
     if (!user) {
@@ -91,7 +91,7 @@ router.post("/login", async (req: Request, res: Response): Promise<void> => {
 
 router.post("/demo", async (_req: Request, res: Response): Promise<void> => {
   try {
-    const db = getDB();
+    const db = await getDB();
     let user = await db.collection<User>("users").findOne({ email: "demo@dreamnest.com" });
 
     if (!user) {
@@ -119,7 +119,7 @@ router.post("/demo", async (_req: Request, res: Response): Promise<void> => {
 
 router.get("/me", authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
-    const db = getDB();
+    const db = await getDB();
     const user = await db.collection<User>("users").findOne(
       { _id: new ObjectId(req.user!.userId) },
       { projection: { password: 0 } }

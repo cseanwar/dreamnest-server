@@ -13,7 +13,7 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const db = getDB();
+    const db = await getDB();
     const contactMessage: ContactMessage = {
       name,
       email,
