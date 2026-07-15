@@ -142,7 +142,7 @@ router.put("/:id", authMiddleware, async (req: Request<{ id: string }>, res: Res
       return;
     }
 
-    if (property.userId.toString() !== req.user!.userId) {
+    if (property.userId.toString() !== req.user!.userId && req.user!.role !== "admin") {
       res.status(403).json({ error: "Not authorized" });
       return;
     }
@@ -189,7 +189,7 @@ router.delete("/:id", authMiddleware, async (req: Request<{ id: string }>, res: 
       return;
     }
 
-    if (property.userId.toString() !== req.user!.userId) {
+    if (property.userId.toString() !== req.user!.userId && req.user!.role !== "admin") {
       res.status(403).json({ error: "Not authorized" });
       return;
     }

@@ -2,30 +2,33 @@ import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { ObjectId } from "mongodb";
+import { z } from "zod";
 import { getDB } from "../config/db";
 import { User } from "../types";
 import { authMiddleware } from "../middleware/auth";
+import { validate } from "../middleware/validate";
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET!;
 
-function generateToken(userId: ObjectId, email: string): string {
-  return jwt.sign({ userId: userId.toString(), email }, JWT_SECRET, { expiresIn: "7d" });
+function generateToken(userId: ObjectId, email: string, role: string): string {
+  return jwt.sign({ userId: userId.toString(), email, role }, JWT_SECRET, { expiresIn: "7d" });
 }
 
-router.post("/register", async (req: Request, res: Response): Promise<void> => {
+const registerSchema = z.object({
+  name: z.string().min(1, "Name is required").max(100),
+  email: z.string().email("Invalid email"),
+  password: z.string().min(6, "Password must be at least 6 characters").max(128),
+});
+
+const loginSchema = z.object({
+  email: z.string().email("Invalid email"),
+  password: z.string().min(1, "Password is required"),
+});
+
+router.post("/register", validate(registerSchema), async (req: Request, res: Response): Promise<void> => {
   try {
     const { name, email, password } = req.body;
-
-    if (!name || !email || !password) {
-      res.status(400).json({ error: "Name, email, and password are required" });
-      return;
-    }
-
-    if (password.length < 6) {
-      res.status(400).json({ error: "Password must be at least 6 characters" });
-      return;
-    }
 
     const db = await getDB();
     const existing = await db.collection<User>("users").findOne({ email: email.toLowerCase() });
@@ -35,34 +38,32 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    const userCount = await db.collection<User>("users").countDocuments();
+    const role = userCount === 0 ? "admin" : "user";
+
     const hashedPassword = await bcrypt.hash(password, 12);
     const result = await db.collection<User>("users").insertOne({
       name,
       email: email.toLowerCase(),
       password: hashedPassword,
-      role: "user",
+      role,
       createdAt: new Date(),
     });
 
-    const token = generateToken(result.insertedId, email.toLowerCase());
+    const token = generateToken(result.insertedId, email.toLowerCase(), role);
 
     res.status(201).json({
       token,
-      user: { id: result.insertedId.toString(), name, email: email.toLowerCase(), role: "user" },
+      user: { id: result.insertedId.toString(), name, email: email.toLowerCase(), role },
     });
   } catch (error) {
     res.status(500).json({ error: "Registration failed" });
   }
 });
 
-router.post("/login", async (req: Request, res: Response): Promise<void> => {
+router.post("/login", validate(loginSchema), async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
-
-    if (!email || !password) {
-      res.status(400).json({ error: "Email and password are required" });
-      return;
-    }
 
     const db = await getDB();
     const user = await db.collection<User>("users").findOne({ email: email.toLowerCase() });
@@ -78,7 +79,7 @@ router.post("/login", async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const token = generateToken(user._id!, user.email);
+    const token = generateToken(user._id!, user.email, user.role);
 
     res.json({
       token,
@@ -106,7 +107,7 @@ router.post("/demo", async (_req: Request, res: Response): Promise<void> => {
       user = { _id: result.insertedId, name: "Demo User", email: "demo@dreamnest.com", password: hashedPassword, role: "user", createdAt: new Date() };
     }
 
-    const token = generateToken(user._id!, user.email);
+    const token = generateToken(user._id!, user.email, user.role);
 
     res.json({
       token,
@@ -130,10 +131,22 @@ router.get("/me", authMiddleware, async (req: Request, res: Response): Promise<v
       return;
     }
 
-    res.json({ user: { id: user._id!.toString(), name: user.name, email: user.email, role: user.role } });
+    res.json({ user: { id: user._id!.toString(), name: user.name, email: user.email, role: user.role, createdAt: user.createdAt } });
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch user" });
   }
 });
+
+const updateProfileSchema = z.object({
+  name: z.string().min(1, "Name is required").max(100).optional(),
+  email: z.string().email("Invalid email").optional(),
+});
+
+const updatePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
+  newPassword: z.string().min(6, "New password must be at least 6 characters").max(128),
+});
+
+export { updateProfileSchema, updatePasswordSchema };
 
 export default router;
